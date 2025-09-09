@@ -29,7 +29,8 @@ export const createCheckoutSession = async (req, res) => {
                         images: [product.image],
                     },
                     unit_amount: amount,
-                }
+                },
+                quantity: product.quantity || 1
             }
         })
 
@@ -97,7 +98,7 @@ export const checkoutSuccess = async (req, res) => {
             const newOrder = new Order({
                 user: session.metadata.userId,
                 products: products.map((product) => ({
-                    product: product._id,
+                    product: product.id,
                     quantity: product.quantity,
                     price: product.price
                 })),
