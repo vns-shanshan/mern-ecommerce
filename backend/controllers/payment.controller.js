@@ -19,7 +19,7 @@ export const createCheckoutSession = async (req, res) => {
             // stripe expects amount in cents
             // Example: $10.00 * 100 -> 1000
             const amount = Math.round(product.price * 100);
-            totalAmount += product.price * product.quantity;
+            totalAmount += amount * product.quantity;
 
             return {
                 price_data: {
@@ -83,6 +83,15 @@ export const checkoutSuccess = async (req, res) => {
         const { sessionId } = req.body
         const session = await stripe.checkout.sessions.retrieve(sessionId)
 
+        const existingOrder = await Order.findOne({ stripeSessionId: sessionId });
+        if (existingOrder) {
+            return res.status(200).json({
+                success: true,
+                message: "Order already created",
+                orderId: existingOrder._id
+            });
+        }
+
         if (session.payment_status === "paid") {
             if (session.metadata.couponCode) {
                 await Coupon.findOneAndUpdate({
@@ -121,7 +130,7 @@ export const checkoutSuccess = async (req, res) => {
 }
 
 async function createStripeCoupon(discountPercentage) {
-    const coupon = await stripe.coupon.create({
+    const coupon = await stripe.coupons.create({
         percent_off: discountPercentage,
         duration: "once",
     })
@@ -130,6 +139,8 @@ async function createStripeCoupon(discountPercentage) {
 }
 
 async function createNewCoupon(userId) {
+    await Coupon.findOneAndDelete({ userId });
+
     const newCoupon = new Coupon({
         code: "GIFT" + Math.random().toString().substring(2, 8).toUpperCase(),
         discountPercentage: 10,
